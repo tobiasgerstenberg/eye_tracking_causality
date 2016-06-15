@@ -6,7 +6,7 @@ Here is a quick description of what you can find in the different folders.
 
 ## Figures ##
 
-- This folder contains all the figures from the paper plus additional figures. 
+This folder contains all the figures from the paper plus additional figures. 
 
 ### Diagrams ###
 
@@ -21,6 +21,8 @@ Here is a quick description of what you can find in the different folders.
 - Screenshots of the instructions 
 
 ## Videos ##
+
+This folder contains different videos, showing just the clips, participants' eye-movements, the Hidden Markov Model, and an example for how the model classifies a participants' looks. 
 
 ### Clips ###
 
@@ -42,7 +44,7 @@ Here is a quick description of what you can find in the different folders.
 
 ## Code ##
 
-- Code files including the experiment files and analysis files 
+This folder contains the experiment and analysis code. 
 
 ### Experiment code ###
 
