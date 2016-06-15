@@ -8,13 +8,17 @@ Here is a quick description of what you can find in the different folders.
 
 - This folder contains all the figures from the paper plus additional figures. 
 
-### Clips ###
+### Diagrams ###
 
-- Diagrams of the 20 clips that were shown to participants in the experiment. 
+- Diagrams of the 18 test clips that were shown to participants in the experiment. 
 
 ### Plots ###
 
 - Data plots shown in the paper and additional plots not shown in the paper. 
+
+### Screenshots ###
+
+- Screenshots of the instructions 
 
 ## Videos ##
 
@@ -36,7 +40,17 @@ Here is a quick description of what you can find in the different folders.
 - Shows how the looks are classified for one example participant (Participant 1 in the causal condition)
 - The label at the top of the screen indicates what state the model believes that the participant is in (using a Viterbi algorithm as described in the paper)
 
+## Code ##
 
+- Code files including the experiment files and analysis files 
+
+### Experiment code ###
+
+- Code to run the experiment in MATLAB using the Psychophysics toolbox 
+
+### Analysis code ###
+
+- Code to run the analysis and make plots in R 
 
 
 
