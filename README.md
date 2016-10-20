@@ -37,6 +37,10 @@ This folder contains the following figures.
 
 - Diagrams of the 18 test clips that were shown to participants in the experiment (both as pdf and png).
 
+### Paper
+
+- Figures contained in the paper. 
+
 ### Plots ###
 
 #### Counterfactual looks ####
