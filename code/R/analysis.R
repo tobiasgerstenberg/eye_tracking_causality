@@ -87,7 +87,6 @@ p = ggplot(df.plot,aes(x=index,y=value,fill=outcome,group=model))+
 gt = ggplot_gtable(ggplot_build(p))
 gt$layout$clip[gt$layout$name=="panel"] = "off"
 grid.draw(gt)
-print(p)
 }
 
 # print ANOVA results 
