@@ -777,7 +777,7 @@ df.plot = df.eyes %>%
 ggplot(df.plot,aes(x=counterfactual,y=rating))+
   geom_smooth(method = lm,color = "black")+
   geom_point()+
-  labs(y = "uncertainty in causal jugment", x = "p(look = B counterfactual)")+
+  labs(y = "certainty in causal jugment", x = "p(look = B counterfactual)")+
   theme_bw()+
   theme(panel.grid = element_blank(),
         text = element_text(size = 24),
