@@ -1,7 +1,7 @@
 #' ---
 #' title: Eye-tracking Causality -- Analysis File 
 #' author: Tobias Gerstenberg
-#' date: July 11, 2016
+#' date: October 20, 2016
 #' output:
 #'    html_document:
 #'      toc: true
@@ -23,6 +23,7 @@ figure.path = "../../figures/"
 #' ## Load Packages
 rm(list = ls())
 
+library(pwr) # power analysis
 library(afex) # package for running ANOVAs 
 library(lsr) # useful functions 
 library(MASS) # useful functions
@@ -35,7 +36,7 @@ library(gridExtra) # plotting
 library(stringr) # string handling  
 library(Hmisc) # bootstrapping functions 
 library(dplyr) # data frame transformation 
-library(tidyr) # data fram transformation 
+library(tidyr) # data frame transformation 
 
 #+ Helper functions ----------------------------------------------------------------------------
 #' ## Helper functions 
@@ -61,7 +62,7 @@ rmse = function(x,y){
 
 # judgment bar graphs 
 
-judgmentPlot = function(df.plot,condition){
+judgmentPlot = function(df.plot,question,name){
 p = ggplot(df.plot,aes(x=index,y=value,fill=outcome,group=model))+
   geom_bar(stat = "identity",position = position_dodge(0.9), aes(width=0.9), color = "black")+
   geom_errorbar(aes(ymin = rating.cl.low, ymax = rating.cl.high),position = position_dodge(0.9), width=0.3)+
@@ -70,7 +71,7 @@ p = ggplot(df.plot,aes(x=index,y=value,fill=outcome,group=model))+
   facet_grid(outcome.actual ~ outcome.counterfactual)+
   scale_fill_manual(values=c("red","green","black"))+
   theme_bw()+
-  ylab(paste(condition, "judgment"))+
+  ylab(question)+
   coord_cartesian(xlim = c(0.5, 2.5),ylim=c(0,100))+
   theme_bw()+
   theme(legend.position="none",
@@ -86,6 +87,17 @@ p = ggplot(df.plot,aes(x=index,y=value,fill=outcome,group=model))+
 gt = ggplot_gtable(ggplot_build(p))
 gt$layout$clip[gt$layout$name=="panel"] = "off"
 grid.draw(gt)
+print(p)
+}
+
+# print ANOVA results 
+
+printAnova = function(fit,correction,row = 1){
+  cat(
+    "F(", fit$anova_table$`num Df`[row],",",fit$anova_table$`den Df`[row],") = ", fit$anova_table$F[row] %>% round(2),
+    ", p = ", fit$anova_table$`Pr(>F)`[row] %>% round(3) * correction,
+    ", \\eta_p^2 = ", fit$anova_table$pes[row] %>% round(2),
+    sep = "")
 }
 
 #+ DATA PROCESSING -----------------------------------------------------------------------------
@@ -130,14 +142,6 @@ df.eyes = df.eyes %>%
 df.judgments = df.judgments %>% 
   filter(clip < 19)
 
-# check whether track loss differs significantly between conditions 
-df.chi = df.trackloss %>% 
-  group_by(condition) %>% 
-  summarise(trackloss = sum(nas)) %>% 
-  mutate(condition = as.character(condition)) %>% 
-  xtabs(trackloss~condition, data=.)
-chisq.test(df.chi)
-
 rm("df.trackloss")
 
 # trackloss per condition
@@ -158,7 +162,7 @@ df.demographics = df.judgments %>%
   group_by(condition,participant) %>% 
   filter(row_number() == 1) %>% 
   ungroup() %>% 
-  summarise(age.mean = round(mean(age),2),
+  summarise(age.mean = round(mean(age)),
             age.sd = round(sd(age),2),
             nfemale = sum(sex == "female"),
             time.mean = round(mean(time),2),
@@ -180,8 +184,11 @@ fit = aov_ez(id = "participant",
              data = df.judgments %>% filter(condition == "counterfactual"),
              between = NULL, 
              anova_table = list(es = "pes",correction="none"),
-             within = c("outcome.counterfactual"))
+             within = c("outcome.actual","outcome.counterfactual"))
 fit$anova_table
+
+printAnova(fit,correction = 1, row = 1)
+printAnova(fit,correction = 1, row = 2)
 
 # Means and SDs 
 df.judgments %>% filter(condition == "counterfactual") %>% 
@@ -229,7 +236,8 @@ df.plot = df.plot %>%
   mutate_each(funs(ifelse(model == "model",NA,.)),contains("cl."))
 
 #plot 
-judgmentPlot(df.plot,'counterfactual')
+judgmentPlot(df.plot,expression(paste('Agreement with ', bold(counterfactual), ' statement')),'Figure 2a')
+
 
 # r and RMSE 
 cor(df.plot$value[df.plot$model == "rating.mean"],
@@ -240,7 +248,7 @@ rmse(df.plot$value[df.plot$model == "rating.mean"],
 
 #+ Behavioral judgments: Causal condition ----------------------------------------------
 #' ## Behavioral judgments: Causal condition 
-#' - ANOVA results and group means 
+#' - ANOVA results and group means (separate for cause and prevention judgments)
 
 # ANOVA on prevention judgments
 fit = aov_ez(id = "participant",
@@ -249,7 +257,8 @@ fit = aov_ez(id = "participant",
              between = NULL, 
              anova_table = list(es = "pes",correction="none"),
              within = c("outcome.counterfactual","outcome.actual"))
-fit$anova_table
+printAnova(fit,correction = 1, row = 1)
+printAnova(fit,correction = 1, row = 2)
 
 # Means and SDs 
 df.judgments %>% 
@@ -266,6 +275,8 @@ fit = aov_ez(id = "participant",
              anova_table = list(es = "pes",correction="none"),
              within = c("outcome.counterfactual","outcome.actual"))
 fit$anova_table
+printAnova(fit,correction = 1, row = 1)
+printAnova(fit,correction = 1, row = 2)
 
 # Means and SDs 
 df.judgments %>% 
@@ -313,7 +324,7 @@ df.plot = df.plot %>%
   mutate_each(funs(ifelse(model == "model",NA,.)),contains("cl."))
 
 #plot 
-judgmentPlot(df.plot,'causal')
+judgmentPlot(df.plot,expression(paste('Agreement with ', bold(causal), ' statement')), 'Figure 2b')
 
 # r and RMSE 
 cor(df.plot$value[df.plot$model == "rating.mean"],
@@ -324,7 +335,7 @@ rmse(df.plot$value[df.plot$model == "rating.mean"],
 
 #+ Behavioral judgments: Outcome condition ----------------------------------------------
 #' ## Behavioral judgments: Outcome condition 
-#' - ANOVA results and group means 
+#' - ANOVA results and group means (separate for positive and negative outcomes)
 
 # ANOVA 
 fit = aov_ez(id = "participant",
@@ -332,8 +343,11 @@ fit = aov_ez(id = "participant",
              data = df.judgments %>% filter(condition == "outcome", outcome == 0),
              between = NULL, 
              anova_table = list(es = "pes",correction="none"),
-             within = c("outcome.actual"))
+             within = c("outcome.actual","outcome.counterfactual"))
 fit$anova_table
+printAnova(fit,correction = 1, row = 1)
+printAnova(fit,correction = 1, row = 2)
+
 
 # Means and SDs 
 df.judgments %>% 
@@ -348,8 +362,10 @@ fit = aov_ez(id = "participant",
              data = df.judgments %>% filter(condition == "outcome", outcome == 1),
              between = NULL, 
              anova_table = list(es = "pes",correction="none"),
-             within = c("outcome.actual"))
+             within = c("outcome.actual","outcome.counterfactual"))
 fit$anova_table
+printAnova(fit,correction = 1, row = 1)
+printAnova(fit,correction = 1, row = 2)
 
 df.judgments %>% 
   filter(condition == "outcome",outcome == 1) %>% 
@@ -397,7 +413,7 @@ df.plot = df.plot %>%
   mutate_each(funs(ifelse(model == "model",NA,.)),contains("cl."))
 
 #plot 
-judgmentPlot(df.plot,'outcome')
+judgmentPlot(df.plot,expression(paste('Agreement with ', bold(outcome), ' statement')), 'Figure 2c')
 
 # r and RMSE 
 cor(df.plot$value[df.plot$model == "rating.mean"],
@@ -442,11 +458,10 @@ df.eyes = df.eyes %>%
   rowwise %>% 
   mutate(counterfactual.distance = fun.distance_to_line(x,y,path.start.x,path.start.y,path.end.x,path.end.y)) %>% 
   ungroup() %>% 
-  mutate(counterfactual.look = ifelse(x > (path.start.x-threshold.x),"pre-collision","post-collision")) %>% 
   mutate(counterfactual.look = ifelse(counterfactual.distance < threshold.distance & 
                                         !is.na(counterfactual.distance) & 
-                                        x < (path.start.x-threshold.x), "counterfactual", counterfactual.look)) %>% 
-  mutate(counterfactual.look = factor(counterfactual.look,levels = c("pre-collision","counterfactual","post-collision"))) %>% 
+                                        x < (path.start.x-threshold.x), "counterfactual", "other")) %>% 
+  mutate(counterfactual.look = factor(counterfactual.look,levels = c("counterfactual","other"))) %>% 
   arrange(condition,participant,clip,instance,frame)
 
 # result table 
@@ -462,27 +477,32 @@ df.tmp = df.eyes %>%
   group_by(condition,counterfactual.look) %>% 
   summarise(mfreq = mean(freq),sdfreq = round(sd(freq)*100,2)) %>% 
   mutate(mfreq = roundAndSum(mfreq*100)) %>% 
+  filter(counterfactual.look == "counterfactual") %>% 
   ungroup %>% 
   mutate(data = paste0(mfreq,"% (", sdfreq,")")) %>% 
-  select(condition,counterfactual.look,data) %>%
-  spread(condition,data)
-print(df.tmp)
+  select(condition,data) %>%
+  spread(condition,data) %>% 
+  print()
 
-# appendix table 
+# results per clip
 df.tmp = df.eyes %>%
   na.omit() %>%
-  filter(saccade == "sacc.end") %>%
-  filter(frame < t.collision, frame > 15) %>%
-  group_by(clip,condition,counterfactual.look) %>%
+  filter(saccade == "sacc.end", frame < t.collision, frame > 15) %>%
+  group_by(clip,condition,participant,counterfactual.look) %>%
   summarise (n = n()) %>%
   mutate(freq = n / sum(n),
          freq_rounded = roundAndSum(freq*100)) %>%
-  ungroup %>%
-  arrange(clip,condition,counterfactual.look) %>%
-  select(condition,clip,counterfactual.look,freq_rounded) %>%
-  spread(counterfactual.look,freq_rounded) %>%
-  arrange(clip,condition)
-print(df.tmp)
+  complete(counterfactual.look,fill=list(n=0,freq=0,freq_rounded=0)) %>% 
+  group_by(condition,clip,counterfactual.look) %>% 
+  summarise(mfreq = mean(freq),sdfreq = round(sd(freq)*100,2)) %>% 
+  ungroup() %>% 
+  mutate(mfreq = roundAndSum(mfreq*100)) %>% 
+  filter(counterfactual.look == "counterfactual") %>% 
+  ungroup %>% 
+  mutate(data = paste0(mfreq,"% (", sdfreq,")")) %>% 
+  select(condition,clip,data) %>%
+  spread(condition,data) %>% 
+  print()
 
 # Chi-square test of types of looks per condition 
 
@@ -527,8 +547,7 @@ df.plot = df.eyes %>%
 df.legend_labels = df.plot %>% 
   group_by(clip,counterfactual.look) %>% 
   summarise (n = n()) %>%
-  left_join(expand(df.plot,clip,counterfactual.look),.) %>%
-  mutate(n = ifelse(is.na(n),0,n)) %>% 
+  complete(counterfactual.look,fill = list(n=0)) %>% 
   group_by(clip) %>% 
   mutate(freq = n / sum(n),
          freq_rounded = roundAndSum(freq*100)) %>%
@@ -541,24 +560,24 @@ for (cli in clips){
            instance %in% ins)
   
   #HACK: add one of each look (behind the legend) to make sure the legend is correct
-  tmp = df[1:3,]
+  tmp = df[1:2,]
   tmp = tmp %>% 
     mutate(x = 500,
            y = 50,
-           counterfactual.look = c("pre-collision","counterfactual","post-collision"))
+           counterfactual.look = c("counterfactual","other"))
   df = rbind(df,tmp)
   
   m = readPNG(paste0("../../figures/diagrams/png/clip_",cli,".png"), FALSE)
   w = matrix(rgb(m[,,1],m[,,2],m[,,3]), nrow=dim(m)[1])
   
-  p = ggplot(df,aes(x=x,y=y,color=counterfactual.look))+
-    annotation_custom(xmin=-Inf, ymin=-Inf, xmax=Inf, ymax=Inf, 
+p = ggplot(df,aes(x=x,y=y,color=counterfactual.look))+
+    annotation_custom(xmin=-Inf, ymin=-Inf, xmax=Inf, ymax=Inf,
                       rasterGrob(w)) +
     geom_point(size=5, alpha = 0.5) +
     scale_color_manual(
       "",
       labels = paste0(as.vector(unlist(df.legend_labels %>% filter(clip == cli) %>% select(freq_rounded))),"%"),
-      values = rev(c("red","green","gray")))+
+      values = c("green","gray"))+
     expand_limits(x=c(0,1024),y=c(0,768))+
     scale_y_continuous(expand = c(0,0)) + 
     scale_x_continuous(expand = c(0,0)) +
@@ -585,6 +604,7 @@ for (cli in clips){
       panel.grid.major =element_blank(),
       panel.grid.minor =element_blank()
     )
+
 }
 print(p)
 
@@ -620,8 +640,8 @@ fit = aov_ez(id = "participant",
 summary(fit)
 
 #post-hoc tests 
-ttest = lsmeans(fit, "condition", contr = "pairwise") 
-ttest = summary(ttest)$contrasts
+tmp = lsmeans(fit, "condition", contr = "pairwise") 
+ttest = summary(tmp,adjust="none")$contrasts
 
 # effect sizes 
 cohen = c(cohensD(df.analysis %>% filter(condition == "counterfactual") %>% select(value) %>% unlist %>% as.numeric,
@@ -636,20 +656,19 @@ cohen = c(cohensD(df.analysis %>% filter(condition == "counterfactual") %>% sele
 correction = 7 # bonferroni correction for multiple comparisons 
 
 cat(
-  "F(", fit$anova_table$`num Df`,",",fit$anova_table$`den Df`,") = ", fit$anova_table$F %>% round(3),
-  ", p = ", fit$anova_table$`Pr(>F)` %>% round(3) * correction,
-  ", \\eta_p^2 = ", fit$anova_table$pes %>% round(3),
+  "F(", fit$anova_table$`num Df`,",",fit$anova_table$`den Df`,") = ", fit$anova_table$F %>% round(2),
+  ", p = ", fit$anova_table$`Pr(>F)` %>% round(3),
+  ", \\eta_p^2 = ", fit$anova_table$pes %>% round(2),
   sep = "")
 
 for (i in 1:nrow(ttest)){
   cat("\n")
   cat(ttest$contrast[i] %>% as.character,": ",
-    "t(",ttest$df[i] ,") = ", ttest$t.ratio[i] %>% round(3),
+    "t(",ttest$df[i] ,") = ", ttest$t.ratio[i] %>% round(2),
   ", p = ", ttest$p.value[i] %>% round(3),
-  ", d = ", cohen[i] %>% round(3),
+  ", d = ", cohen[i] %>% round(2),
   sep = "")
 }
-  
 
 #+ Plot: HMM results  --------------------------------------------------------------------------------
 #' ## Plot: HMM results  
@@ -726,9 +745,8 @@ fit = aov_ez(id = "participant",
              within = c("outcome.counterfactual"))
 fit$anova_table
 
-
-ttest = lsmeans(fit, "outcome.counterfactual", contr = "pairwise") 
-ttest = summary(ttest)$contrasts
+tmp = lsmeans(fit, "outcome.counterfactual", contr = "pairwise")
+ttest = summary(tmp,adjust="none")$contrasts
 
 cohen = c(cohensD(df.tmp %>% filter(outcome.counterfactual == "miss") %>% select(post.B.counterfactual) %>% unlist %>% as.numeric,
                   df.tmp %>% filter(outcome.counterfactual == "close") %>% select(post.B.counterfactual) %>% unlist %>% as.numeric),
@@ -737,12 +755,14 @@ cohen = c(cohensD(df.tmp %>% filter(outcome.counterfactual == "miss") %>% select
           cohensD(df.tmp %>% filter(outcome.counterfactual == "close") %>% select(post.B.counterfactual) %>% unlist %>% as.numeric,
                   df.tmp %>% filter(outcome.counterfactual == "hit") %>% select(post.B.counterfactual) %>% unlist %>% as.numeric))
 
+printAnova(fit,1)
+
 for (i in 1:nrow(ttest)){
   cat("\n")
   cat(ttest$contrast[i] %>% as.character,": ",
-      "t(",ttest$df[i] ,") = ", ttest$t.ratio[i] %>% round(3),
+      "t(",ttest$df[i] ,") = ", ttest$t.ratio[i] %>% round(2),
       ", p = ", ttest$p.value[i] %>% round(3),
-      ", d = ", cohen[i] %>% round(3),
+      ", d = ", cohen[i] %>% round(2),
       sep = "")
 }
 
@@ -758,7 +778,7 @@ df.plot = df.eyes %>%
 ggplot(df.plot,aes(x=counterfactual,y=rating))+
   geom_smooth(method = lm,color = "black")+
   geom_point()+
-  labs(y = "causal jugment", x = "p(look = B counterfactual)")+
+  labs(y = "uncertainty in causal jugment", x = "p(look = B counterfactual)")+
   theme_bw()+
   theme(panel.grid = element_blank(),
         text = element_text(size = 24),
@@ -877,13 +897,13 @@ df.plot = df.eyes %>%
          condition = factor(condition,levels=1:3,labels = c("counterfactual","causal","outcome"))) %>% 
   mutate_each(funs(ifelse(is.na(.),0,.)),n,freq) %>% 
   arrange(condition) %>%
-  mutate(index = rep(rep(1:10,each=3),3))
+  mutate(index = rep(rep(1:10,each=2),3))
 
 ggplot(df.plot,aes(x=index,y=freq,fill = counterfactual.look)) +
   geom_bar(stat = "identity",color = "black")+
   facet_wrap(~condition,scales = "free_x")+
   theme_bw()+
-  scale_fill_manual(values= c("gray","green","red"))+
+  scale_fill_manual(values= c("green","gray"))+
   labs(y = "percentage", x = "participant index", fill = "type of look")+
   scale_x_continuous(breaks = 1:10)+
   scale_y_continuous(breaks = seq(0,1,.25), labels = paste(seq(0,100,25),'%',sep=""))+
@@ -904,26 +924,27 @@ ggplot(df.plot,aes(x=index,y=freq,fill = counterfactual.look)) +
 #' - Classification of the different types of looks as a function of the distance parameter which determines how close the end point of a saccade needs to be to B's counterfactual path in order for it to qualify as a 'counterfactual saccade'
 
 df.fixations = df.eyes %>%
-  na.omit() %>% 
+  na.omit() %>%
   expand(condition,counterfactual.look)
 
 threshold.x = 50
 
 for (i in seq(0,300,10)){
+# for (i in seq(0,300,50)){
   threshold.distance = i
   df.tmp = df.eyes %>% 
     na.omit() %>% 
     filter(saccade == "sacc.end") %>% 
     group_by(clip) %>% 
     filter(frame < t.collision, frame > 15) %>% 
-    mutate(counterfactual.look = ifelse(x > (path.start.x-threshold.x),"pre-collision","post-collision")) %>% 
     mutate(counterfactual.look = ifelse(counterfactual.distance < threshold.distance & 
                                           !is.na(counterfactual.distance) & 
-                                          x < (path.start.x-threshold.x), "counterfactual", counterfactual.look)) %>% 
-    mutate(counterfactual.look = factor(counterfactual.look,levels = c("pre-collision","counterfactual","post-collision"))) %>% 
+                                          x < (path.start.x-threshold.x), "counterfactual", "other")) %>% 
+    mutate(counterfactual.look = factor(counterfactual.look,levels = c("counterfactual","other"))) %>% 
     ungroup %>% 
     group_by(condition,counterfactual.look) %>% 
     summarise(n = n()) %>%
+    complete(counterfactual.look,fill = list(n = 0)) %>% 
     mutate(freq = n/sum(n)) %>% 
     select(condition,counterfactual.look,freq) %>%
     left_join(df.fixations,.) %>%  #hack to make sure that all levels are being used
@@ -947,7 +968,7 @@ ggplot(df.plot,aes(x=threshold,y=percentage,color=counterfactual.look,group=coun
   geom_line(stat = "identity",size=2)+
   facet_wrap(~condition)+
   theme_bw()+
-  scale_color_manual(values= c("gray","green","red"))+
+  scale_color_manual(values= c("green","gray"))+
   labs(y = "percentage", x = "distance parameter", color = "type of look")+
   scale_x_continuous(breaks = seq(0,300,50))+
   scale_y_continuous(breaks = seq(0,1,.25), labels = paste(seq(0,100,25),'%',sep=""))+
@@ -1102,5 +1123,3 @@ for (cli in clips){
     )
   print(p)
 }
-
-
