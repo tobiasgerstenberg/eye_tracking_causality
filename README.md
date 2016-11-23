@@ -11,7 +11,7 @@ This folder contains the experiment and analysis code.
 - Code that was used to run the experiment in MATLAB using the Psychophysics toolbox: 
 	+ `tracking_counterfactual.m`: Used to run the counterfactual condition
 	+ `tracking_causal.m`: Used to run the causal condition
-	+ `tracking_outcome.m`: Used to run the outcome condition
+	+ `tracking_outcome.m`: Used to run the outcome condition [@gerstenberg2015voting]
 
 ### R ###
 

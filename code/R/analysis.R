@@ -398,7 +398,7 @@ df.plot = df.judgments %>%
   ungroup %>% 
   left_join(df.model)
 
-lm(rating.mean~distance,data=df.plot) %>% summary()
+lm(rating.mean~distance*outcome,data=df.plot) %>% summary()
 
 df.plot = df.plot %>%
   mutate(model = regression(.),
