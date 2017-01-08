@@ -1,7 +1,7 @@
 #' ---
 #' title: Eye-tracking Causality -- Analysis File 
 #' author: Tobias Gerstenberg
-#' date: October 20, 2016
+#' date: January 8, 2016
 #' output:
 #'    html_document:
 #'      toc: true
@@ -63,30 +63,31 @@ rmse = function(x,y){
 # judgment bar graphs 
 
 judgmentPlot = function(df.plot,question,name){
-p = ggplot(df.plot,aes(x=index,y=value,fill=outcome,group=model))+
-  geom_bar(stat = "identity",position = position_dodge(0.9), aes(width=0.9), color = "black")+
-  geom_errorbar(aes(ymin = rating.cl.low, ymax = rating.cl.high),position = position_dodge(0.9), width=0.3)+
-  geom_text(data = df.plot[1:18,], aes(y=-14,x=index,label = as.character(clip)),
-            size = 6,position = position_dodge(width = .7),hjust=0.5)+
-  facet_grid(outcome.actual ~ outcome.counterfactual)+
-  scale_fill_manual(values=c("red","green","black"))+
-  theme_bw()+
-  ylab(question)+
-  coord_cartesian(xlim = c(0.5, 2.5),ylim=c(0,100))+
-  theme_bw()+
-  theme(legend.position="none",
-        axis.text.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        panel.margin.y=unit(c(.8),"cm"),
-        plot.margin=unit(c(0.2,0.2,.5,.2),"cm"),
-        axis.title.x = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        strip.background = element_blank(),panel.border = element_rect(colour = "black"),
-        text=element_text(size=20)
-  )
-gt = ggplot_gtable(ggplot_build(p))
-gt$layout$clip[gt$layout$name=="panel"] = "off"
-grid.draw(gt)
+  p = ggplot(df.plot,aes(x=index,y=value,fill=outcome,group=model))+
+    geom_bar(stat = "identity",position = position_dodge(0.9), width=0.9, color = "black")+
+    geom_linerange(aes(ymin = rating.cl.low, ymax = rating.cl.high),position = position_dodge(0.9), size = 1)+
+    geom_text(data = df.plot[1:18,], aes(y=-14,x=index,label = as.character(clip)),
+              size = 6,position = position_dodge(width = .7),hjust=0.5)+
+    facet_grid(outcome.actual ~ outcome.counterfactual)+
+    scale_fill_manual(values=c("red","green","black"))+
+    theme_bw()+
+    ylab(question)+
+    coord_cartesian(xlim = c(0.5, 2.5),ylim=c(0,100))+
+    theme_bw()+
+    theme(legend.position="none",
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          panel.spacing=unit(c(.8),"cm"),
+          plot.margin=unit(c(0.2,0.2,.5,.2),"cm"),
+          axis.title.x = element_blank(),
+          panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          strip.background = element_blank(),panel.border = element_rect(colour = "black"),
+          text=element_text(size=20)
+    )
+  gt = ggplot_gtable(ggplot_build(p))
+  gt$layout$clip = "off"
+  grid.draw(gt)
+  # print(p)
 }
 
 # print ANOVA results 
@@ -161,7 +162,7 @@ df.demographics = df.judgments %>%
   group_by(condition,participant) %>% 
   filter(row_number() == 1) %>% 
   ungroup() %>% 
-  summarise(age.mean = round(mean(age)),
+  summarise(age.mean = round(mean(age),2),
             age.sd = round(sd(age),2),
             nfemale = sum(sex == "female"),
             time.mean = round(mean(time),2),
@@ -512,20 +513,6 @@ df.chi = df.eyes %>%
 df.chi = table(df.chi$counterfactual.look,df.chi$condition)
 chisq.test(df.chi)
 
-# Follow up with binomial test 
-
-# contrasting counterfactual looks vs. other kinds of looks 
-df.binomial = df.eyes %>% 
-  filter(saccade == "sacc.end") %>% 
-  filter(frame < t.collision, frame > 15) %>% 
-  mutate(condition = factor(condition,levels = c("causal","counterfactual","outcome"))) %>% 
-  mutate(counter.look = ifelse(counterfactual.look == "counterfactual",1,0),
-         counter.look = ifelse(is.na(counter.look),0,counter.look))
-
-fit = glmer(counter.look~condition+(1|participant),data = df.binomial, family = binomial)
-summary(fit)
-anova(fit)
-
 #+ Plot: Fixation map prior to collision ------------------------------------------------------------
 #' ## Plot: Fixation map prior to collision 
 #' - Plots fixation maps for clip 4 in the causal condition (code can be adapted to show plots for other conditions and clips)
@@ -581,27 +568,16 @@ p = ggplot(df,aes(x=x,y=y,color=counterfactual.look))+
     scale_y_continuous(expand = c(0,0)) + 
     scale_x_continuous(expand = c(0,0)) +
     labs(x=NULL, y=NULL)+
+    theme_void()+
     theme(
-      line = element_blank(),
-      title = element_blank(),
       text = element_text(size=40),
-      axis.text = element_blank(),
-      axis.ticks = element_blank(),
       axis.ticks.length = unit(0,"null"),
       legend.position = c(0.5,0), 
       legend.justification = c(0.5,-0.1),
       legend.key = element_rect(fill=alpha('white', 0)),
       legend.background = element_rect(fill='white',color="black"),
       legend.key.height = unit(1.2,"cm"),
-      legend.direction = "horizontal",
-      panel.border = element_blank(),
-      plot.background = element_rect(colour = NA, fill = 'transparent'),
-      panel.background = element_rect(colour = NA, fill = 'transparent'),
-      plot.margin=unit(c(0,0,0,0),"null"),
-      panel.margin=unit(c(0,0,0,0),"null"),
-      panel.grid =element_blank(),
-      panel.grid.major =element_blank(),
-      panel.grid.minor =element_blank()
+      legend.direction = "horizontal"
     )
 
 }
@@ -693,9 +669,9 @@ df.plot = df.eyes %>%
 
 ggplot(df.plot,aes(x=look,y=percentage,fill = look))+
   stat_summary(fun.y = mean, geom = "bar", color="black", 
-               position = position_dodge(0.9), aes(width=0.9))+
-  stat_summary(fun.data = mean_cl_boot, geom = "errorbar",width=0.3, 
-               position = position_dodge(0.9))+
+               position = position_dodge(0.8), width=0.8)+
+  stat_summary(fun.data = mean_cl_boot, geom = "linerange",size = 1, 
+               position = position_dodge(0.8))+
   facet_grid(~condition)+
   labs(y = 'probability of each type of look', fill = '')+
   scale_y_continuous(breaks = seq(0,0.4,0.1),labels = paste0(seq(0,40,10),"%"),
@@ -712,7 +688,7 @@ ggplot(df.plot,aes(x=look,y=percentage,fill = look))+
         axis.ticks.x = element_blank(),
         strip.text = element_text(size=36),
         legend.text = element_text(size=30),
-        panel.margin.y=unit(c(.8),"cm"),
+        panel.spacing.y=unit(c(.8),"cm"),
         plot.margin=unit(c(0.2,0.2,.2,.2),"cm"),
         axis.title.y = element_text(margin = margin(0,0.5,0,0,unit="cm")),
         legend.key = element_blank(),
@@ -1104,21 +1080,10 @@ for (cli in clips){
     coord_cartesian(xlim=c(0,1024),
                     ylim=c(0,768))+
     labs(x=NULL, y=NULL)+
+    theme_void()+
     theme(
-      line = element_blank(),
-      title = element_blank(),
-      text = element_blank(),
-      axis.ticks = element_blank(),
       axis.ticks.length = unit(0,"null"),
-      legend.position = "none",
-      panel.border = element_blank(),
-      plot.background = element_rect(colour = NA, fill = 'transparent'),
-      panel.background = element_rect(colour = NA, fill = 'transparent'),
-      plot.margin=unit(c(0,0,0,0),"null"),
-      panel.margin=unit(c(0,0,0,0),"null"),
-      panel.grid =element_blank(),
-      panel.grid.major =element_blank(),
-      panel.grid.minor =element_blank()
+      legend.position = "none"
     )
   print(p)
 }
