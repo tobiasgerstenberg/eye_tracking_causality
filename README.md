@@ -80,6 +80,10 @@ This folder contains different videos, showing just the clips, participants' eye
 
 - Clips showing each participants' eye-movements, organized by experimental condition (and the eye-movements of those participants who were excluded from the experiment based on track loss).  
 
+### Supplementary ###
+
+- Supplementary video clips as referred to in the paper. 
+
 
 
 
