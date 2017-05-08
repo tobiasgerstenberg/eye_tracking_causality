@@ -1,6 +1,6 @@
 # Eye-tracking causality #
 
-This repository contains materials of the project Eye-tracking Causality. Please contact [me](mailto:tger@mit.edu)  in case you have any questions. 
+This repository contains materials of the project Eye-tracking Causality. Please contact [me](mailto:tger@mit.edu) in case you have any questions. 
 
 ## Code ##
 
@@ -11,7 +11,7 @@ This folder contains the experiment and analysis code.
 - Code that was used to run the experiment in MATLAB using the Psychophysics toolbox: 
 	+ `tracking_counterfactual.m`: Used to run the counterfactual condition
 	+ `tracking_causal.m`: Used to run the causal condition
-	+ `tracking_outcome.m`: Used to run the outcome condition [@gerstenberg2015voting]
+	+ `tracking_outcome.m`: Used to run the outcome condition
 
 ### R ###
 
@@ -79,6 +79,7 @@ This folder contains different videos, showing just the clips, participants' eye
 ### Tracking ###
 
 - Clips showing each participants' eye-movements, organized by experimental condition (and the eye-movements of those participants who were excluded from the experiment based on track loss).  
+- Note that the participant files weren't labeled consecutively. 
 
 ### Supplementary ###
 

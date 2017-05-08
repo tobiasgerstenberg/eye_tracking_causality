@@ -1,7 +1,7 @@
 #' ---
 #' title: Eye-tracking Causality -- Analysis File 
 #' author: Tobias Gerstenberg
-#' date: January 8, 2016
+#' date: May 8, 2017
 #' output:
 #'    html_document:
 #'      toc: true
@@ -107,6 +107,7 @@ printAnova = function(fit,correction,row = 1){
 #' ## Read in data file  
 
 load("../../data/summary/trackingDataFrames.RData")
+# load("trackingDataFrames.RData")
 
 #+ Exclude participants based on trackloss  -----------------------------------------------------------------------
 #' ## Exclude participants based on track loss  
@@ -383,6 +384,7 @@ df.model = df.eyes %>%
   group_by(clip) %>%
   filter(frame == t.outcome.actual) %>%
   mutate(distance = abs(both.B.y-384)) %>% 
+  ungroup() %>% 
   select(clip,distance)
 
 regression = function(x){
@@ -424,7 +426,7 @@ rmse(df.plot$value[df.plot$model == "rating.mean"],
 
 #+ Eye-tracking: Static analysis  ------------------------------------------------------------
 #' ## Eye-tracking: Static analysis  
-#' - Categorizes participants' looks prior to the two balls colliding into pre-collision, counterfactual, and post-collision looks
+#' - Categorizes participants' looks prior to the two balls colliding into counterfactual looks and other looks
 #' - Displays results table separated by condition, and separated by condition x clip 
 #' - Reports statistical tests on whether looks differ between conditions 
 
@@ -665,7 +667,8 @@ df.plot = df.eyes %>%
                             labels=c(expression("counterfactual\ncondition"),
                                      expression("causal\ncondition"),
                                      expression("outcome\ncondition")
-                            )))
+                            ))) %>% 
+  arrange(condition,participant,look)
 
 ggplot(df.plot,aes(x=look,y=percentage,fill = look))+
   stat_summary(fun.y = mean, geom = "bar", color="black", 
@@ -696,6 +699,62 @@ ggplot(df.plot,aes(x=look,y=percentage,fill = look))+
         legend.key.height = unit(1.2,"cm")
   )+
   guides(fill=guide_legend(nrow=2,byrow=TRUE))
+
+#+ Plot: HMM results (early vs. late trials)  --------------------------------------------------------------------------------
+#' ## Plot: HMM results (early vs. later trials) 
+#' - Plots the average probability of participants being in different states separated by condition (only taking into account end points of participants' saccades)
+
+df.plot = df.eyes %>% 
+  left_join(df.judgments %>% select(participant,clip,trial)) %>% 
+  mutate(time = ifelse(trial <= 9, 'early','late')) %>% 
+  filter(saccade == "sacc.end") %>%
+  filter(frame < t.outcome.actual, frame > 15) %>%
+  group_by(participant,condition,time) %>% 
+  select(contains("post")) %>% 
+  summarise_each(funs(mean(.,na.rm=T))) %>% 
+  gather(look,percentage,-c(condition,participant,time)) %>% 
+  ungroup %>%
+  mutate(look = factor(look,levels = c("post.A.look", "post.B.look", "post.A.predict", "post.B.predict",
+                                       "post.A.counterfactual", "post.B.counterfactual","post.other"),
+                       labels=c("A look", "B look", "A predict ", "B predict ", "A counterfactual ",
+                                "B counterfactual ", "other")),
+         condition = factor(condition,levels = c("counterfactual","causal","outcome"),
+                            labels=c(expression("counterfactual\ncondition"),
+                                     expression("causal\ncondition"),
+                                     expression("outcome\ncondition")
+                            )))
+
+ggplot(df.plot,aes(x=look,y=percentage,fill = look))+
+  stat_summary(fun.y = mean, geom = "bar", color="black", 
+               position = position_dodge(0.8), width=0.8)+
+  stat_summary(fun.data = mean_cl_boot, geom = "linerange",size = 1, 
+               position = position_dodge(0.8))+
+  facet_grid(time~condition)+
+  labs(y = 'probability of each type of look', fill = '')+
+  scale_y_continuous(breaks = seq(0,0.4,0.1),labels = paste0(seq(0,40,10),"%"),
+                     expand=c(0,0))+
+  coord_cartesian(ylim=c(0,0.45))+
+  theme_bw()+
+  theme(text = element_text(size=30),
+        legend.position = "bottom",
+        panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_line(color = "gray60",linetype=2),
+        strip.background = element_blank(),panel.border = element_rect(colour = "black"),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        strip.text = element_text(size=36),
+        legend.text = element_text(size=30),
+        panel.spacing.y=unit(c(.8),"cm"),
+        plot.margin=unit(c(0.2,0.2,.2,.2),"cm"),
+        axis.title.y = element_text(margin = margin(0,0.5,0,0,unit="cm")),
+        legend.key = element_blank(),
+        legend.key.size = unit(1.2,"cm"),
+        legend.key.height = unit(1.2,"cm")
+  )+
+  guides(fill=guide_legend(nrow=2,byrow=TRUE))
+
+# ggsave('hmm_early_late.pdf',width=14,height=8)
 
 #+ Eyes & Judgments: Relationship between counterfactual looks and outcome certainty  ----------------------------
 #' ## Eyes & Judgments: Relationship between counterfactual looks and outcome certainty  
