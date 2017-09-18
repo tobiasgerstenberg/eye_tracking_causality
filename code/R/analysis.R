@@ -1,7 +1,7 @@
 #' ---
 #' title: Eye-tracking Causality -- Analysis File 
 #' author: Tobias Gerstenberg
-#' date: May 8, 2017
+#' date: September 18, 2017
 #' output:
 #'    html_document:
 #'      toc: true
@@ -30,13 +30,12 @@ library(MASS) # useful functions
 library(lme4) # regressions 
 library(xtable) # create latex tables 
 library(png) # load pngs 
-library(ggplot2) # plotting 
 library(grid) # plotting
 library(gridExtra) # plotting
 library(stringr) # string handling  
+library(magick) # image manipulation
 library(Hmisc) # bootstrapping functions 
-library(dplyr) # data frame transformation 
-library(tidyr) # data frame transformation 
+library(tidyverse) # dplyr, tidyr, ggplot2 
 
 #+ Helper functions ----------------------------------------------------------------------------
 #' ## Helper functions 
@@ -143,8 +142,6 @@ df.eyes = df.eyes %>%
 df.judgments = df.judgments %>% 
   filter(clip < 19)
 
-rm("df.trackloss")
-
 # trackloss per condition
 df.eyes %>% 
   group_by(condition,participant) %>% 
@@ -152,9 +149,9 @@ df.eyes %>%
   group_by(condition) %>% 
   summarise(trackloss.mean = mean(trackloss),
             trackloss.sd = sd(trackloss)) %>% 
-  mutate_each(funs(round(.*100,2)),contains("track"))
+  mutate_at(vars(contains("track")),funs(round(.*100,2)))
   
-
+rm("df.trackloss")
 #+ Demographics --------------------------------------------------------------------------------
 #' ## Demographics 
 #' - Displays demographic information
@@ -234,7 +231,7 @@ df.plot = df.plot %>%
   gather(model,value,c(rating.mean,model)) %>% 
   mutate(outcome = as.factor(ifelse(model == "model",3,outcome)),
          model = factor(model,levels = c("rating.mean","model"))) %>% 
-  mutate_each(funs(ifelse(model == "model",NA,.)),contains("cl."))
+  mutate_at(vars(contains("cl.")),funs(ifelse(model == "model",NA,.)))
 
 #plot 
 judgmentPlot(df.plot,expression(paste('Agreement with ', bold(counterfactual), ' statement')),'Figure 2a')
@@ -322,7 +319,7 @@ df.plot = df.plot %>%
   gather(model,value,c(rating.mean,model)) %>% 
   mutate(outcome = as.factor(ifelse(model == "model",3,outcome)),
          model = factor(model,levels = c("rating.mean","model"))) %>% 
-  mutate_each(funs(ifelse(model == "model",NA,.)),contains("cl."))
+  mutate_at(vars(contains("cl.")),funs(ifelse(model == "model",NA,.)))
 
 #plot 
 judgmentPlot(df.plot,expression(paste('Agreement with ', bold(causal), ' statement')), 'Figure 2b')
@@ -412,7 +409,7 @@ df.plot = df.plot %>%
   gather(model,value,c(rating.mean,model)) %>% 
   mutate(outcome = as.factor(ifelse(model == "model",3,outcome)),
          model = factor(model,levels = c("rating.mean","model"))) %>% 
-  mutate_each(funs(ifelse(model == "model",NA,.)),contains("cl."))
+  mutate_at(vars(contains("cl.")),funs(ifelse(model == "model",NA,.)))
 
 #plot 
 judgmentPlot(df.plot,expression(paste('Agreement with ', bold(outcome), ' statement')), 'Figure 2c')
@@ -538,7 +535,12 @@ df.legend_labels = df.plot %>%
   complete(counterfactual.look,fill = list(n=0)) %>% 
   group_by(clip) %>% 
   mutate(freq = n / sum(n),
-         freq_rounded = roundAndSum(freq*100)) %>%
+         freq_rounded = roundAndSum(freq*100)) %>% 
+  ungroup() %>% 
+  mutate(counterfactual.look = factor(counterfactual.look, levels = c("counterfactual", "other"), 
+                                      labels = c('Counterfactual Saccade', 'Other Saccade')),
+         counterfactual.look = as.character(counterfactual.look),
+         label = paste0(counterfactual.look," (",freq_rounded,"%)")) %>%
   ungroup
 
 for (cli in clips){
@@ -546,42 +548,42 @@ for (cli in clips){
   df = df.plot %>% 
     filter(clip == cli,
            instance %in% ins)
-  
-  #HACK: add one of each look (behind the legend) to make sure the legend is correct
-  tmp = df[1:2,]
-  tmp = tmp %>% 
-    mutate(x = 500,
-           y = 50,
-           counterfactual.look = c("counterfactual","other"))
-  df = rbind(df,tmp)
+  legend_label = df.legend_labels %>% filter(clip == cli) %>% pull(label)
   
   m = readPNG(paste0("../../figures/diagrams/png/clip_",cli,".png"), FALSE)
   w = matrix(rgb(m[,,1],m[,,2],m[,,3]), nrow=dim(m)[1])
   
-p = ggplot(df,aes(x=x,y=y,color=counterfactual.look))+
+p = ggplot(df,aes(x=x,y=y))+
     annotation_custom(xmin=-Inf, ymin=-Inf, xmax=Inf, ymax=Inf,
                       rasterGrob(w)) +
-    geom_point(size=5, alpha = 0.5) +
-    scale_color_manual(
-      "",
-      labels = paste0(as.vector(unlist(df.legend_labels %>% filter(clip == cli) %>% select(freq_rounded))),"%"),
-      values = c("green","gray"))+
+    geom_point(data = df,size=5, alpha = 0.6, aes(color = counterfactual.look, shape = counterfactual.look, fill = counterfactual.look),stroke=2) +
+    scale_shape_manual("",values = c(21,16),
+                       labels = legend_label, limits = c("counterfactual","other")
+                         )+
+    scale_color_manual("",values = c('black','gray20'),
+                       labels = legend_label, limits = c("counterfactual","other"))+
+    scale_fill_manual("",values = c('white','gray20'),
+                      labels = legend_label, limits = c("counterfactual","other"))+
     expand_limits(x=c(0,1024),y=c(0,768))+
     scale_y_continuous(expand = c(0,0)) + 
     scale_x_continuous(expand = c(0,0)) +
     labs(x=NULL, y=NULL)+
     theme_void()+
     theme(
-      text = element_text(size=40),
+      text = element_text(size=30),
       axis.ticks.length = unit(0,"null"),
       legend.position = c(0.5,0), 
-      legend.justification = c(0.5,-0.1),
+      legend.justification = c(0.5,-0.2),
+      # legend.position = c(0.5,1), 
+      # legend.justification = c(0.5,1.2),
+      legend.title = element_blank(),
       legend.key = element_rect(fill=alpha('white', 0)),
       legend.background = element_rect(fill='white',color="black"),
       legend.key.height = unit(1.2,"cm"),
-      legend.direction = "horizontal"
+      legend.key.width = unit(1,"cm"),
+      legend.margin = margin(t=0.1,r=0.2,b=0.1,l=0.1,unit="cm"),
+      legend.direction = 'vertical'
     )
-
 }
 print(p)
 
@@ -656,7 +658,7 @@ df.plot = df.eyes %>%
   filter(frame < t.outcome.actual, frame > 15) %>%
   group_by(participant,condition) %>% 
   select(contains("post")) %>% 
-  summarise_each(funs(mean(.,na.rm=T))) %>% 
+  summarise_all(funs(mean(.,na.rm=T))) %>% 
   gather(look,percentage,-c(condition,participant)) %>% 
   ungroup %>%
   mutate(look = factor(look,levels = c("post.A.look", "post.B.look", "post.A.predict", "post.B.predict",
@@ -664,9 +666,9 @@ df.plot = df.eyes %>%
                        labels=c("A look", "B look", "A predict ", "B predict ", "A counterfactual ",
                                 "B counterfactual ", "other")),
          condition = factor(condition,levels = c("counterfactual","causal","outcome"),
-                            labels=c(expression("counterfactual\ncondition"),
-                                     expression("causal\ncondition"),
-                                     expression("outcome\ncondition")
+                            labels=c(expression("Counterfactual\ncondition"),
+                                     expression("Causal\ncondition"),
+                                     expression("Outcome\ncondition")
                             ))) %>% 
   arrange(condition,participant,look)
 
@@ -679,6 +681,7 @@ ggplot(df.plot,aes(x=look,y=percentage,fill = look))+
   labs(y = 'probability of each type of look', fill = '')+
   scale_y_continuous(breaks = seq(0,0.4,0.1),labels = paste0(seq(0,40,10),"%"),
                      expand=c(0,0))+
+  scale_fill_brewer(type = 'qual', palette = 3)+
   coord_cartesian(ylim=c(0,0.45))+
   theme_bw()+
   theme(text = element_text(size=30),
@@ -700,61 +703,7 @@ ggplot(df.plot,aes(x=look,y=percentage,fill = look))+
   )+
   guides(fill=guide_legend(nrow=2,byrow=TRUE))
 
-#+ Plot: HMM results (early vs. late trials)  --------------------------------------------------------------------------------
-#' ## Plot: HMM results (early vs. later trials) 
-#' - Plots the average probability of participants being in different states separated by condition (only taking into account end points of participants' saccades)
-
-df.plot = df.eyes %>% 
-  left_join(df.judgments %>% select(participant,clip,trial)) %>% 
-  mutate(time = ifelse(trial <= 9, 'early','late')) %>% 
-  filter(saccade == "sacc.end") %>%
-  filter(frame < t.outcome.actual, frame > 15) %>%
-  group_by(participant,condition,time) %>% 
-  select(contains("post")) %>% 
-  summarise_each(funs(mean(.,na.rm=T))) %>% 
-  gather(look,percentage,-c(condition,participant,time)) %>% 
-  ungroup %>%
-  mutate(look = factor(look,levels = c("post.A.look", "post.B.look", "post.A.predict", "post.B.predict",
-                                       "post.A.counterfactual", "post.B.counterfactual","post.other"),
-                       labels=c("A look", "B look", "A predict ", "B predict ", "A counterfactual ",
-                                "B counterfactual ", "other")),
-         condition = factor(condition,levels = c("counterfactual","causal","outcome"),
-                            labels=c(expression("counterfactual\ncondition"),
-                                     expression("causal\ncondition"),
-                                     expression("outcome\ncondition")
-                            )))
-
-ggplot(df.plot,aes(x=look,y=percentage,fill = look))+
-  stat_summary(fun.y = mean, geom = "bar", color="black", 
-               position = position_dodge(0.8), width=0.8)+
-  stat_summary(fun.data = mean_cl_boot, geom = "linerange",size = 1, 
-               position = position_dodge(0.8))+
-  facet_grid(time~condition)+
-  labs(y = 'probability of each type of look', fill = '')+
-  scale_y_continuous(breaks = seq(0,0.4,0.1),labels = paste0(seq(0,40,10),"%"),
-                     expand=c(0,0))+
-  coord_cartesian(ylim=c(0,0.45))+
-  theme_bw()+
-  theme(text = element_text(size=30),
-        legend.position = "bottom",
-        panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(),
-        panel.grid.major.y = element_line(color = "gray60",linetype=2),
-        strip.background = element_blank(),panel.border = element_rect(colour = "black"),
-        axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        strip.text = element_text(size=36),
-        legend.text = element_text(size=30),
-        panel.spacing.y=unit(c(.8),"cm"),
-        plot.margin=unit(c(0.2,0.2,.2,.2),"cm"),
-        axis.title.y = element_text(margin = margin(0,0.5,0,0,unit="cm")),
-        legend.key = element_blank(),
-        legend.key.size = unit(1.2,"cm"),
-        legend.key.height = unit(1.2,"cm")
-  )+
-  guides(fill=guide_legend(nrow=2,byrow=TRUE))
-
-# ggsave('hmm_early_late.pdf',width=14,height=8)
+ggsave('test.pdf',width=20,height=8)
 
 #+ Eyes & Judgments: Relationship between counterfactual looks and outcome certainty  ----------------------------
 #' ## Eyes & Judgments: Relationship between counterfactual looks and outcome certainty  
@@ -767,7 +716,7 @@ df.tmp = df.eyes %>%
   filter(condition == "causal") %>% 
   filter(saccade == "sacc.end") %>%
   group_by(participant,outcome.counterfactual) %>%
-  summarise_each(funs(mean),contains("post")) %>% 
+  summarise_at(vars(contains("post")),funs(mean)) %>% 
   select(participant,outcome.counterfactual,post.B.counterfactual) %>% 
   ungroup()
 
@@ -926,10 +875,11 @@ df.plot = df.eyes %>%
   count(condition,participant,counterfactual.look) %>% 
   group_by(condition,participant) %>%
   mutate(freq = n/sum(n)) %>% 
+  ungroup() %>% 
   left_join(df.eyes %>% expand(participant,counterfactual.look) %>% na.omit(),.) %>% 
   mutate(condition = ifelse(is.na(condition),3,condition),
          condition = factor(condition,levels=1:3,labels = c("counterfactual","causal","outcome"))) %>% 
-  mutate_each(funs(ifelse(is.na(.),0,.)),n,freq) %>% 
+  mutate_at(vars(n,freq),funs(ifelse(is.na(.),0,.))) %>% 
   arrange(condition) %>%
   mutate(index = rep(rep(1:10,each=2),3))
 
@@ -947,8 +897,6 @@ ggplot(df.plot,aes(x=index,y=freq,fill = counterfactual.look)) +
         strip.background = element_blank(),panel.border = element_rect(colour = "black"),
         strip.text = element_text(size=24),
         legend.text = element_text(size=16),
-        panel.margin.y=unit(c(.8),"cm"),
-        plot.margin=unit(c(0.2,0.2,.2,.2),"cm"),
         axis.title.y = element_text(vjust = 1.5)
   )
 
@@ -1013,7 +961,6 @@ ggplot(df.plot,aes(x=threshold,y=percentage,color=counterfactual.look,group=coun
         strip.background = element_blank(),panel.border = element_rect(colour = "black"),
         strip.text = element_text(size=24),
         legend.text = element_text(size=16),
-        panel.margin.y=unit(c(.8),"cm"),
         plot.margin=unit(c(0.2,0.2,.2,.2),"cm"),
         axis.title.y = element_text(vjust = 1.5)
   )
@@ -1031,7 +978,7 @@ smoothing_func = function(x,y){
   fit = loess(y~x,span=0.1)
   out = fit$fitted
   return(out)
-}  
+}
 
 # cli = 1:18
 cli = 4
@@ -1048,7 +995,7 @@ df.plot = df.eyes %>%
   arrange(participant,instance,frame) %>% 
   na.omit() %>% 
   group_by(frame) %>% 
-  summarise_each(funs(mean),contains("post")) %>% 
+  summarise_at(vars(contains("post")),funs(mean)) %>% 
   gather(state,probability,contains("post")) %>%
   mutate(state = factor(state, levels = paste0("post.",c("A.look","B.look","A.predict","B.predict",
                                                          "A.counterfactual","B.counterfactual",
@@ -1111,8 +1058,8 @@ for (cli in clips){
     
   fit = kde2d(df.tmp$x, df.tmp$y, h = c(100,100),n=500)
 
-  df.plot = expand.grid(x = fit$x,y = fit$y)
-  df.plot$z = matrix(unlist(fit$z),ncol=1)
+  df.plot = expand.grid(x = fit$x, y = fit$y)
+  df.plot$z = as.numeric(matrix(unlist(fit$z),ncol=1))
   
   # adjust grid bounds (to avoid polygon errors ...)
   minValue<-sapply(df.plot,min)
