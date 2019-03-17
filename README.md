@@ -16,7 +16,7 @@ This folder contains the experiment and analysis code.
 ### R ###
 
 - Code to run the analysis and make plots in R.
-- `analysis.R` performs statistical analysis and plots the results, the file also creates a Markdown report of the results which may be accessed [here](https://rawgit.com/tobiasgerstenberg/eye_tracking_causality/master/code/R/analysis.html)  
+- `analysis.R` performs statistical analysis and plots the results, the file also creates a Markdown report of the results which may be accessed [here](http://tobiasgerstenberg.github.io/eye_tracking_causality/)  
 - `HMM_model.R` runs the HMM and Viterbi algorithm on an individual participant
 - `readData.R` reads in the behavioral data and classification of the eye-movements to create a summary file of the data (which `analysis.R` uses) 
 - `ballPositions.txt` contains the positions of each ball on the screen over time (as outputted by the physics simulator)
