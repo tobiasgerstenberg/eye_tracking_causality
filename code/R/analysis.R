@@ -105,8 +105,8 @@ printAnova = function(fit,correction,row = 1){
 #+ Read in data file  --------------------------------------------------------------------------
 #' ## Read in data file  
 
-load("../../data/summary/trackingDataFrames.RData")
-# load("trackingDataFrames.RData")
+# load("../../data/summary/trackingDataFrames.RData")
+load("trackingDataFrames.RData")
 
 #+ Exclude participants based on trackloss  -----------------------------------------------------------------------
 #' ## Exclude participants based on track loss  
@@ -1093,3 +1093,28 @@ for (cli in clips){
     )
   print(p)
 }
+
+# --------------------- -----------------------------------------------------------------------
+#+ MISC ---------------------------------------------------------------------------------------
+#' # MISC
+# --------------------- -----------------------------------------------------------------------
+
+
+# Counterfactual saccades broken down by clip outcome -----------------------------------------
+
+df.eyes %>% 
+  filter(saccade == 'sacc.end') %>% 
+  filter(frame > 15,frame < t.collision) %>% 
+  mutate(outcome = factor(outcome,levels = 0:1, labels = c('prevention','causation'))) %>% 
+  rename(look = counterfactual.look) %>% 
+  group_by(outcome,look) %>% 
+  summarise(n = n()) %>% 
+  # group_by(participant) %>% 
+  mutate(proportion = n/sum(n)) %>% 
+  # group_by(outcome,look) %>% 
+  # summarise(mean = mean(proportion),
+  #           sd = sd(proportion)) %>% 
+  select(-n) %>% 
+  xtable() %>% 
+  print(type = 'html', include.rownames=F)
+
