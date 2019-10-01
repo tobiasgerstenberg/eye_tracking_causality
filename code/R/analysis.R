@@ -105,8 +105,8 @@ printAnova = function(fit,correction,row = 1){
 #+ Read in data file  --------------------------------------------------------------------------
 #' ## Read in data file  
 
-# load("../../data/summary/trackingDataFrames.RData")
-load("trackingDataFrames.RData")
+load("../../data/summary/trackingDataFrames.RData")
+# load("trackingDataFrames.RData")
 
 #+ Exclude participants based on trackloss  -----------------------------------------------------------------------
 #' ## Exclude participants based on track loss  
